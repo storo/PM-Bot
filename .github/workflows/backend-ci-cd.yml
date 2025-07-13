@@ -1,0 +1,30 @@
+name: Deploy Backend to Cloud Functions
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy_functions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          workload_identity_provider: 'projects/YOUR_GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'
+          service_account: 'YOUR_SERVICE_ACCOUNT_EMAIL'
+
+      - name: 'Deploy to Cloud Functions'
+        uses: 'google-github-actions/deploy-cloud-functions@v1'
+        with:
+          name: 'your-function-name'
+          runtime: 'nodejs20'
+          entry_point: 'yourEntryPoint'
+          source_dir: './functions' # Assuming your functions are in a 'functions' directory
