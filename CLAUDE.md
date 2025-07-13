@@ -149,4 +149,57 @@ Cada subagente analizó los casos de uso desde su perspectiva especializada, gen
 
 ---
 
+## Registro de Avances (Log de Trabajo)
+
+### Fecha: 2025-07-13
+
+**Hito: Configuración Inicial del Proyecto y Entorno de Desarrollo**
+
+#### Tareas Completadas:
+
+- **Análisis y Refinamiento de Documentos:**
+    - Se realizó una revisión crítica de los 10 casos de uso generados.
+    - Se actualizaron todos los casos de uso para incluir flujos de error, requisitos no funcionales y para resolver ambigüedades.
+
+- **TASK-DEVOPS-001: Configuración del Repositorio Git**
+    - Se inicializó el repositorio de Git (`git init`).
+    - Se creó un `README.md` con la descripción del proyecto y la estrategia de ramificación.
+    - Se añadió un archivo `.gitignore` optimizado para proyectos Node.js/React.
+
+- **TASK-DEVOPS-002 & 003: Creación de Pipelines CI/CD**
+    - Se creó la estructura de directorios `.github/workflows`.
+    - Se crearon los archivos base `frontend-ci-cd.yml` y `backend-ci-cd.yml` utilizando las mejores prácticas (Workload Identity Federation).
+
+- **TASK-INFRA-001: Configuración del Proyecto Google Cloud y Firebase**
+    - Se habilitaron las APIs necesarias: Firebase, Firebase Auth, Firestore, Cloud Functions, Vertex AI.
+
+- **TASK-INFRA-002: Aprovisionamiento de Firestore y Reglas de Seguridad**
+    - Se creó la base de datos de Firestore en la región `nam5`.
+    - Se creó el archivo de reglas de seguridad `firestore.rules` con la configuración inicial para el MVP.
+    - Se documentó el esquema de la base de datos en `firestore.schema.md`.
+
+- **TASK-INFRA-003: Aprovisionamiento de Redis (Memorystore)**
+    - Se creó la instancia de Memorystore Redis `pm-bot-redis` en la región `us-central1`.
+
+- **TASK-SECURITY-001: Gestión de Secretos**
+    - Se creó el archivo `.env.example` para definir las variables de entorno necesarias para el desarrollo local.
+
+- **TASK-MONITOR-001 & 002: Plan de Monitoreo**
+    - Se creó el documento `MONITORING_PLAN.md` detallando la estrategia de logging, dashboards y alertas.
+
+- **Configuración de `gcloud` CLI:**
+    - Se descargó, instaló y configuró el SDK de Google Cloud.
+    - Se realizó la autenticación mediante una cuenta de servicio (`gemini-cli-runner`).
+    - Se habilitó la API de `cloudresourcemanager`.
+    - Se configuró el proyecto por defecto a `pm-bot-prod`.
+
+#### Commits Realizados:
+
+1.  `feat(devops): initialize repository and CI/CD workflows`
+2.  `feat(config): add firestore rules, schema, and env template`
+3.  `docs(observability): create monitoring and alerting plan`
+4.  `feat(infra): provision core GCP services (Firestore, Redis, APIs)`
+
+--- 
+
 *Para información detallada sobre cualquier aspecto específico, consultar los análisis especializados en `docs/analisis/`.*
