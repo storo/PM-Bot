@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can read their own user document, but not others.
+    match /users/{userId} {
+      allow read, update: if request.auth.uid == userId;
+    }
+
+    // A user can create a project.
+    // Only members of a project can read or write to it.
+    match /projects/{projectId} {
+      allow read, write: if request.auth.uid in resource.data.members;
+      allow create: if request.auth.uid != null;
+    }
+
+    // Tasks can only be accessed by members of the project they belong to.
+    match /tasks/{taskId} {
+      allow read, write: if get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.members.hasAny([request.auth.uid]);
+    }
+
+    // Conversations are part of a project and can only be accessed by project members.
+    match /conversations/{conversationId} {
+        allow read, write: if get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.members.hasAny([request.auth.uid]);
+    }
+  }
+}
