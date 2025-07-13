@@ -183,6 +183,7 @@ Cada subagente analizó los casos de uso desde su perspectiva especializada, gen
 
 - **TASK-SECURITY-001: Gestión de Secretos**
     - Se creó el archivo `.env.example` para definir las variables de entorno necesarias para el desarrollo local.
+    - **Se actualizó `.env.example` con la configuración real de Firebase Web App.**
 
 - **TASK-MONITOR-001 & 002: Plan de Monitoreo**
     - Se creó el documento `MONITORING_PLAN.md` detallando la estrategia de logging, dashboards y alertas.
