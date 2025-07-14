@@ -32,10 +32,14 @@ jobs:
           workload_identity_provider: 'projects/694385104566/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
           service_account: 'gemini-cli-runner@pm-bot-prod.iam.gserviceaccount.com'
 
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+
       - name: 'Deploy to Cloud Functions'
         uses: 'google-github-actions/deploy-cloud-functions@v1'
         with:
-          name: 'your-function-name'
+          name: 'pm-bot-conversational-engine'
           runtime: 'nodejs20'
-          entry_point: 'yourEntryPoint'
-          source_dir: './functions' # Assuming your functions are in a 'functions' directory
+          entry_point: 'conversationalHandler'
+          source_dir: './functions'
+          service_account_email: 'gemini-cli-runner@pm-bot-prod.iam.gserviceaccount.com'
