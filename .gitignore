@@ -1,9 +1,20 @@
 # Dependencias
 /node_modules
+*/node_modules
+node_modules/
 
 # Archivos de build
 /build
 /dist
+*/build
+*/dist
+
+# Package lock files (auto-generated)
+package-lock.json
+*/package-lock.json
+
+# Public build assets
+web/public/
 
 # Logs
 npm-debug.log*
