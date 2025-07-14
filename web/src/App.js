@@ -4,7 +4,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>PM-Bot Frontend</h1>
+        <h1>PM-Bot Frontend v2</h1>
         <p>
           Edit <code>src/App.js</code> and save to reload.
         </p>
