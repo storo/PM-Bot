@@ -13,8 +13,8 @@ node_modules/
 package-lock.json
 */package-lock.json
 
-# Public build assets
-web/public/
+# Build output directories (but keep source files)
+web/build/
 
 # Logs
 npm-debug.log*
