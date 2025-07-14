@@ -18,8 +18,8 @@ jobs:
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'
         with:
-          workload_identity_provider: 'projects/YOUR_GCP_PROJECT_NUMBER/locations/global/workloadIdentityPools/YOUR_POOL_ID/providers/YOUR_PROVIDER_ID'
-          service_account: 'YOUR_SERVICE_ACCOUNT_EMAIL'
+          workload_identity_provider: 'projects/694385104566/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'gemini-cli-runner@pm-bot-prod.iam.gserviceaccount.com'
 
       - name: 'Deploy to Cloud Functions'
         uses: 'google-github-actions/deploy-cloud-functions@v1'
