@@ -1,9 +1,7 @@
-name: Deploy Backend to Cloud Functions
+name: Deploy Backend to Cloud Functions (Alternative)
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:  # Manual trigger for testing
 
 jobs:
   deploy_functions:
@@ -19,9 +17,11 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
+      
       - name: Install Dependencies
         run: npm install
         working-directory: ./functions
+      
       - name: Run Tests
         run: npm test
         working-directory: ./functions
@@ -35,12 +35,14 @@ jobs:
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
 
-      - name: 'Deploy to Cloud Functions'
-        uses: 'google-github-actions/deploy-cloud-functions@v1'
-        with:
-          name: 'pm-bot-conversational-engine'
-          runtime: 'nodejs20'
-          entry_point: 'conversationalHandler'
-          source_dir: './functions'
-          region: 'us-central1'
-          service_account_email: 'pm-bot-prod@appspot.gserviceaccount.com'
+      - name: 'Deploy with gcloud CLI directly'
+        run: |
+          gcloud functions deploy pm-bot-conversational-engine \
+            --runtime nodejs20 \
+            --trigger-http \
+            --allow-unauthenticated \
+            --source ./functions \
+            --entry-point conversationalHandler \
+            --region us-central1 \
+            --service-account pm-bot-prod@appspot.gserviceaccount.com \
+            --project pm-bot-prod

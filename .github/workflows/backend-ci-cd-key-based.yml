@@ -1,16 +1,11 @@
-name: Deploy Backend to Cloud Functions
+name: Deploy Backend to Cloud Functions (Key-based)
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:  # Manual trigger for testing
 
 jobs:
   deploy_functions:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
 
     steps:
       - uses: actions/checkout@v3
@@ -19,18 +14,20 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
+      
       - name: Install Dependencies
         run: npm install
         working-directory: ./functions
+      
       - name: Run Tests
         run: npm test
         working-directory: ./functions
 
+      # This approach uses service account key stored as GitHub secret
       - id: 'auth'
         uses: 'google-github-actions/auth@v1'
         with:
-          workload_identity_provider: 'projects/694385104566/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-          service_account: 'gemini-cli-runner@pm-bot-prod.iam.gserviceaccount.com'
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
@@ -43,4 +40,3 @@ jobs:
           entry_point: 'conversationalHandler'
           source_dir: './functions'
           region: 'us-central1'
-          service_account_email: 'pm-bot-prod@appspot.gserviceaccount.com'
