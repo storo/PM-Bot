@@ -15,9 +15,12 @@
   },
   "compileOnSave": true,
   "include": [
-    "src",
-    "./**/*.ts",
+    "./**/*.ts"
+  ],
+  "exclude": [
     "./**/*.test.ts",
-    "./**/*.js"
+    "jest.setup.ts",
+    "lib/**/*",
+    "node_modules/**/*"
   ]
 }

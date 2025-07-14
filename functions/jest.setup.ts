@@ -1,7 +1,5 @@
-import '@jest/globals';
-declare const jest: any;
+import { beforeAll, afterAll, jest } from '@jest/globals';
 const { execSync } = require('child_process');
-const admin = require('firebase-admin');
 
 // Mock Firebase Admin SDK before any modules that use it are loaded
 const mockFirestoreInstance = {
@@ -57,37 +55,18 @@ jest.mock('firebase-functions', () => ({
 }));
 
 beforeAll(async () => {
-  // Start Firebase emulators (Firestore and Auth)
-  console.log('Starting Firebase emulators...');
-  try {
-    execSync('firebase emulators:start --only firestore,auth --project pm-bot-test --import=./firebase-emulator-data --export-on-exit', { stdio: 'inherit' });
-    console.log('Firebase emulators started.');
-  } catch (error) {
-    console.error('Failed to start Firebase emulators:', error);
-    process.exit(1);
-  }
-
-  // Seed Firestore with test data
-  console.log('Seeding Firestore...');
-  try {
-    execSync('npm run seed:test-db', { stdio: 'inherit', cwd: './functions' });
-    console.log('Firestore seeded.');
-  } catch (error) {
-    console.error('Failed to seed Firestore:', error);
-    process.exit(1);
-  }
+  // Setup test environment
+  console.log('Setting up test environment...');
+  // Mock environment variables
+  process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = 'localhost:9099';
 });
 
 afterAll(async () => {
-  // Stop Firebase emulators
-  console.log('Stopping Firebase emulators...');
-  try {
-    execSync('firebase emulators:stop --project pm-bot-test', { stdio: 'inherit' });
-    console.log('Firebase emulators stopped.');
-  } catch (error) {
-    console.error('Failed to stop Firebase emulators:', error);
-    process.exit(1);
-  }
+  // Cleanup test environment
+  console.log('Cleaning up test environment...');
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+  delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
 });
 
 module.exports = { mockFirestoreInstance, mockAuthInstance };
