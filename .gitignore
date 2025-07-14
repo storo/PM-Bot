@@ -9,9 +9,9 @@ node_modules/
 */build
 */dist
 
-# Package lock files (auto-generated)
+# Package lock files (auto-generated) - only ignore in root
 package-lock.json
-*/package-lock.json
+functions/package-lock.json
 
 # Build output directories (but keep source files)
 web/build/
