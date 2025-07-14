@@ -3,7 +3,7 @@ name: Deploy Frontend to Firebase Hosting
 on:
   push:
     branches:
-      - develop
+      - main
 
 jobs:
   build_and_test:
