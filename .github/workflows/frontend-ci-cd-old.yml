@@ -1,0 +1,50 @@
+name: Deploy Frontend to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Install Dependencies
+        run: npm install
+        working-directory: ./web
+      - name: Run Tests
+        run: npm test
+        working-directory: ./web
+      - name: Build
+        run: npm run build
+        working-directory: ./web
+
+  deploy:
+    needs: build_and_test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          workload_identity_provider: 'projects/694385104566/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'gemini-cli-runner@pm-bot-prod.iam.gserviceaccount.com'
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PM_BOT_PROD }}'
+          channelId: dev
+          projectId: pm-bot-prod
+          cwd: ./web
