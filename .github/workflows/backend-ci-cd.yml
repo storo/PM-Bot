@@ -42,4 +42,4 @@ jobs:
           runtime: 'nodejs20'
           entry_point: 'conversationalHandler'
           source_dir: './functions'
-          service_account_email: 'gemini-cli-runner@pm-bot-prod.iam.gserviceaccount.com'
+          region: 'us-central1'
