@@ -29,7 +29,7 @@ graph TD
     Conv_Engine --> Integr_Service(4. Servicio de Integraciones Externas)
     Conv_Engine --> Project_Intell_Service(5. Servicio de Inteligencia de Proyectos)
 
-    Auth_Service --> DB(Base de Datos Relacional - PostgreSQL)
+    Auth_Service --> DB(Base de Datos NoSQL - Firestore)
     Proj_Mgmt_Service --> DB
     Project_Intell_Service --> DB
 
@@ -38,8 +38,8 @@ graph TD
     Auth_Service --> Notif_Service(6. Servicio de Notificaciones)
     Project_Intell_Service --> Notif_Service
 
-    Conv_Engine --> Redis(Redis: Estado Conversacional, Cache)
-    Proj_Mgmt_Service --> Redis
+    Conv_Engine --> Firestore_Cache(Firestore: Estado Conversacional, Cache)
+    Proj_Mgmt_Service --> Firestore_Cache
 
     Proj_Mgmt_Service --> Message_Queue(7. Cola de Mensajes - Kafka/RabbitMQ)
     Project_Intell_Service --> Message_Queue
@@ -83,14 +83,15 @@ graph TD
 - **Responsabilidad:** Envío de emails, alertas proactivas
 - **Tecnología:** SendGrid, AWS SES, o servicio similar
 
-#### 8. Base de Datos Relacional
-- **Responsabilidad:** Persistencia de datos estructurados
-- **Tecnología:** PostgreSQL (recomendado) o MySQL
+#### 8. Base de Datos NoSQL
+- **Responsabilidad:** Persistencia de datos estructurados y semi-estructurados
+- **Tecnología:** Firestore (recomendado)
 - **Datos:** Usuarios, proyectos, tareas, sprints, mapeos de integración
 
 #### 9. Cache/Base de Datos en Memoria
 - **Responsabilidad:** Estado conversacional, sesiones, datos de acceso frecuente
-- **Tecnología:** Redis (recomendado) o Memcached
+- **Tecnología:** Firestore (para estado conversacional y cache de documentos)
+
 
 #### 10. Cola de Mensajes
 - **Responsabilidad:** Comunicación asíncrona entre microservicios
@@ -152,7 +153,7 @@ graph TD
   ```
 
 ### Estado de Aplicación
-- **Persistencia:** PostgreSQL con esquema optimizado
+- **Persistencia:** Firestore con estructura de colecciones optimizada
 - **Entidades principales:** Users, Projects, Tasks, Teams, Integrations
 
 ### Sesiones de Usuario
@@ -166,9 +167,9 @@ graph TD
 - **Implementación:** Balanceadores de carga, contenedores Docker, Kubernetes
 
 ### Escalado de Base de Datos
-- **Lectura:** Réplicas de lectura para consultas (UC-005)
-- **Escritura:** Particionamiento (sharding) si el volumen lo justifica
-- **Cache:** Redis para datos frecuentemente consultados
+- **Lectura:** Consultas optimizadas y desnormalización para lecturas rápidas
+- **Escritura:** Transacciones distribuidas y batched writes
+- **Cache:** Firestore para datos frecuentemente consultados (cache local del SDK)
 
 ### Asincronía
 - **Cola de Mensajes:** Para operaciones no inmediatas
@@ -528,201 +529,155 @@ CREATE TABLE alert_feedback (
 
 ## Persistencia de Datos
 
-### Esquema de Base de Datos Optimizado
+### Esquema de Base de Datos Optimizado (Firestore)
 
-```sql
--- Usuarios y autenticación
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255), -- NULL para usuarios OAuth únicamente
-    full_name VARCHAR(255) NOT NULL,
-    avatar_url VARCHAR(500),
-    email_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Métodos de autenticación
-CREATE TABLE auth_methods (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    provider VARCHAR(50) NOT NULL, -- 'local', 'google', 'github'
-    provider_id VARCHAR(255), -- ID en el proveedor externo
-    metadata JSONB, -- Información adicional del proveedor
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(provider, provider_id)
-);
-
--- Proyectos
-CREATE TABLE projects (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    owner_id INTEGER REFERENCES users(id),
-    methodology VARCHAR(50) DEFAULT 'agile', -- 'agile', 'kanban', 'waterfall'
-    settings JSONB DEFAULT '{}', -- Configuraciones específicas del proyecto
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Miembros del proyecto
-CREATE TABLE project_members (
-    id SERIAL PRIMARY KEY,
-    project_id INTEGER REFERENCES projects(id),
-    user_id INTEGER REFERENCES users(id),
-    role VARCHAR(50) DEFAULT 'member', -- 'owner', 'manager', 'member'
-    joined_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(project_id, user_id)
-);
-
--- Tareas
-CREATE TABLE tasks (
-    id SERIAL PRIMARY KEY,
-    project_id INTEGER REFERENCES projects(id),
-    title VARCHAR(500) NOT NULL,
-    description TEXT,
-    status VARCHAR(50) DEFAULT 'todo', -- 'todo', 'in_progress', 'done', 'blocked'
-    assignee_id INTEGER REFERENCES users(id),
-    creator_id INTEGER REFERENCES users(id),
-    due_date DATE,
-    priority VARCHAR(20) DEFAULT 'medium', -- 'low', 'medium', 'high', 'urgent'
-    story_points INTEGER, -- Para metodologías ágiles
-    external_id VARCHAR(255), -- ID en sistema externo (Jira)
-    external_system VARCHAR(50), -- 'jira', 'github', etc.
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Auditoría de cambios
-CREATE TABLE task_history (
-    id SERIAL PRIMARY KEY,
-    task_id INTEGER REFERENCES tasks(id),
-    user_id INTEGER REFERENCES users(id),
-    field_changed VARCHAR(100) NOT NULL,
-    old_value TEXT,
-    new_value TEXT,
-    changed_at TIMESTAMP DEFAULT NOW()
-);
-
--- Índices para optimización
-CREATE INDEX idx_tasks_project_status ON tasks(project_id, status);
-CREATE INDEX idx_tasks_assignee_status ON tasks(assignee_id, status);
-CREATE INDEX idx_tasks_due_date ON tasks(due_date) WHERE due_date IS NOT NULL;
-CREATE INDEX idx_task_history_task_id ON task_history(task_id);
-```
-
-### Optimizaciones de Performance
-
-#### Índices Estratégicos
-```sql
--- Para consultas de estado de proyecto (UC-005)
-CREATE INDEX idx_tasks_project_metrics ON tasks(project_id, status, updated_at);
-
--- Para búsqueda de tareas por texto
-CREATE INDEX idx_tasks_title_search ON tasks USING gin(to_tsvector('spanish', title));
-
--- Para consultas de usuario
-CREATE INDEX idx_tasks_user_workload ON tasks(assignee_id, status) WHERE status != 'done';
-```
-
-#### Vistas Materializadas para Métricas
-```sql
--- Vista para métricas de proyecto
-CREATE MATERIALIZED VIEW project_metrics AS
-SELECT 
-    p.id as project_id,
-    p.name as project_name,
-    COUNT(t.id) as total_tasks,
-    COUNT(CASE WHEN t.status = 'done' THEN 1 END) as completed_tasks,
-    COUNT(CASE WHEN t.status = 'in_progress' THEN 1 END) as in_progress_tasks,
-    COUNT(CASE WHEN t.status = 'blocked' THEN 1 END) as blocked_tasks,
-    ROUND(
-        COUNT(CASE WHEN t.status = 'done' THEN 1 END)::decimal / 
-        NULLIF(COUNT(t.id), 0) * 100, 2
-    ) as completion_percentage,
-    MAX(t.updated_at) as last_activity
-FROM projects p
-LEFT JOIN tasks t ON p.id = t.project_id
-GROUP BY p.id, p.name;
-
--- Refrescar automáticamente cada 5 minutos
-CREATE OR REPLACE FUNCTION refresh_project_metrics()
-RETURNS void AS $$
-BEGIN
-    REFRESH MATERIALIZED VIEW CONCURRENTLY project_metrics;
-END;
-$$ LANGUAGE plpgsql;
-
--- Programar refresco automático (requiere pg_cron extension)
-SELECT cron.schedule('refresh-project-metrics', '*/5 * * * *', 'SELECT refresh_project_metrics();');
-```
-
-### Redis para Estado Conversacional
-
-#### Estructura de Datos
 ```json
+// Colección: users
+// Documento: {userId}
 {
-  "session:user123:conv456": {
-    "user_id": 123,
-    "project_id": 789,
-    "current_intent": "create_task",
-    "entities": {
-      "task_title": "Implementar autenticación OAuth",
-      "assignee": null,
-      "due_date": null
-    },
-    "conversation_step": "awaiting_assignee",
-    "context": {
-      "last_mentioned_tasks": [101, 102],
-      "current_project_context": true
-    },
-    "dialog_history": [
-      {
-        "timestamp": "2025-07-13T10:30:00Z",
-        "user_input": "Crear tarea para OAuth",
-        "bot_response": "¿A quién asigno la tarea 'Implementar autenticación OAuth'?",
-        "intent": "create_task",
-        "entities_extracted": ["task_title"]
-      }
-    ],
-    "last_activity": "2025-07-13T10:30:00Z",
-    "ttl": 3600
-  }
+  "email": "user@example.com",
+  "fullName": "John Doe",
+  "avatarUrl": "https://example.com/avatar.jpg",
+  "emailVerified": false,
+  "createdAt": "2025-07-13T10:00:00Z",
+  "updatedAt": "2025-07-13T10:00:00Z",
+  "authMethods": [ // Subcolección o array si es pequeño
+    {
+      "provider": "google",
+      "providerId": "google-oauth-id",
+      "metadata": {}
+    }
+  ]
+}
+
+// Colección: projects
+// Documento: {projectId}
+{
+  "name": "My First Project",
+  "description": "A project to manage tasks.",
+  "ownerId": "userId123",
+  "methodology": "agile",
+  "settings": {},
+  "createdAt": "2025-07-13T10:00:00Z",
+  "updatedAt": "2025-07-13T10:00:00Z",
+  "members": [ // Subcolección o array si es pequeño
+    {
+      "userId": "userId123",
+      "role": "owner",
+      "joinedAt": "2025-07-13T10:00:00Z"
+    }
+  ]
+}
+
+// Colección: tasks
+// Documento: {taskId}
+{
+  "projectId": "projectId456",
+  "title": "Implement authentication",
+  "description": "Implement user registration and login.",
+  "status": "todo", // "todo", "in_progress", "done", "blocked"
+  "assigneeId": "userId789",
+  "creatorId": "userId123",
+  "dueDate": "2025-07-20", // ISO 8601 date string
+  "priority": "high", // "low", "medium", "high", "urgent"
+  "storyPoints": 5,
+  "externalId": "JIRA-123",
+  "externalSystem": "jira",
+  "createdAt": "2025-07-13T10:00:00Z",
+  "updatedAt": "2025-07-13T10:00:00Z"
+}
+
+// Colección: task_history (subcolección de tasks o colección de nivel superior)
+// Documento: {historyId}
+{
+  "taskId": "taskId123",
+  "userId": "userId123",
+  "fieldChanged": "status",
+  "oldValue": "todo",
+  "newValue": "in_progress",
+  "changedAt": "2025-07-13T11:00:00Z"
 }
 ```
 
-#### Configuración Redis
-```python
-import redis
-import json
-from datetime import timedelta
+### Optimizaciones de Performance (Firestore)
 
-class ConversationStateManager:
-    def __init__(self):
-        self.redis_client = redis.Redis(
-            host='localhost',
-            port=6379,
-            db=0,
-            decode_responses=True
-        )
-        self.default_ttl = 3600  # 1 hora
+#### Estructura de Colecciones e Índices
+- **Colecciones:** `users`, `projects`, `tasks`, `conversations`, `integrations`
+- **Subcolecciones:** `project_members` (dentro de `projects`), `task_history` (dentro de `tasks`)
+- **Índices:** Firestore crea índices automáticamente para la mayoría de los campos. Se crearán índices compuestos para consultas que involucren múltiples campos en una cláusula `where` o `orderBy`.
+
+#### Consultas Optimizadas
+- **Consultas de rango:** Uso de `startAt`, `endAt`, `startAfter`, `endBefore` para paginación y filtrado.
+- **Consultas de agregación:** Uso de Cloud Functions para realizar agregaciones complejas (ej. contar tareas completadas).
+
+#### Caching Estratégico
+- **Cache local del SDK:** El SDK de Firestore mantiene una copia local de los datos para acceso offline y rápido.
+- **Cache a nivel de aplicación:** Implementar cache en memoria para datos frecuentemente accedidos que no cambian a menudo (ej. configuraciones de usuario).
+
+
+### Firestore para Estado Conversacional
+
+#### Estructura de Datos (Colección `conversations`)
+```json
+// Colección: conversations
+// Documento: {sessionId}
+{
+  "userId": "123",
+  "projectId": "789",
+  "currentIntent": "create_task",
+  "entities": {
+    "taskTitle": "Implementar autenticación OAuth",
+    "assignee": null,
+    "dueDate": null
+  },
+  "conversationStep": "awaiting_assignee",
+  "context": {
+    "lastMentionedTasks": ["taskId101", "taskId102"],
+    "currentProjectContext": true
+  },
+  "dialogHistory": [
+    {
+      "timestamp": "2025-07-13T10:30:00Z",
+      "userInput": "Crear tarea para OAuth",
+      "botResponse": "¿A quién asigno la tarea 'Implementar autenticación OAuth'?",
+      "intent": "create_task",
+      "entitiesExtracted": ["taskTitle"]
+    }
+  ],
+  "lastActivity": "2025-07-13T10:30:00Z"
+}
+```
+
+#### Configuración Firestore para Estado Conversacional
+```javascript
+const admin = require('firebase-admin');
+const db = admin.firestore();
+
+class ConversationStateManager {
+    constructor() {
+        this.conversationsCollection = db.collection('conversations');
+    }
     
-    def save_state(self, session_id, state):
-        key = f"session:{session_id}"
-        serialized_state = json.dumps(state, default=str)
-        self.redis_client.setex(key, self.default_ttl, serialized_state)
+    async saveState(sessionId, state) {
+        // Firestore no tiene TTL nativo, se gestionaría con Cloud Functions o reglas de seguridad
+        await this.conversationsCollection.doc(sessionId).set(state);
+    }
     
-    def get_state(self, session_id):
-        key = f"session:{session_id}"
-        serialized_state = self.redis_client.get(key)
-        if serialized_state:
-            return json.loads(serialized_state)
-        return None
+    async getState(sessionId) {
+        const doc = await this.conversationsCollection.doc(sessionId).get();
+        if (doc.exists) {
+            return doc.data();
+        }
+        return null;
+    }
     
-    def extend_session(self, session_id):
-        key = f"session:{session_id}"
-        self.redis_client.expire(key, self.default_ttl)
+    async extendSession(sessionId) {
+        // Actualizar un campo para indicar actividad reciente, si es necesario para reglas de limpieza
+        await this.conversationsCollection.doc(sessionId).update({
+            lastActivity: new Date().toISOString()
+        });
+    }
+}
 ```
 
 ### Data Lake para IA (Post-MVP)

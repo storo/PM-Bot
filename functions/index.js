@@ -1,49 +1,44 @@
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+const { db } = require('./utils/firestore');
+const authFunctions = require('./auth');
+const projectManagementFunctions = require('./projectManagement');
+const conversationalEngineFunctions = require('./conversationalEngine');
+const integrationServiceFunctions = require('./integrationService');
+const projectIntelligenceFunctions = require('./projectIntelligence');
 
-// Initialize Firebase Admin SDK
-admin.initializeApp();
+// Export authentication functions
+exports.register = authFunctions.register;
+exports.login = authFunctions.login;
+exports.oauthGoogle = authFunctions.oauthGoogle;
+exports.forgotPassword = authFunctions.forgotPassword;
+exports.resetPassword = authFunctions.resetPassword;
 
-/**
- * Cloud Function for PM-Bot Conversational Engine
- * Handles conversational AI interactions for the project management bot
- */
-exports.conversationalHandler = functions.https.onRequest(async (req, res) => {
-  // Set CORS headers
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+// Export project management functions
+exports.createProject = projectManagementFunctions.createProject;
+exports.getProject = projectManagementFunctions.getProject;
+exports.updateProject = projectManagementFunctions.updateProject;
+exports.deleteProject = projectManagementFunctions.deleteProject;
+exports.listProjects = projectManagementFunctions.listProjects;
+exports.createTask = projectManagementFunctions.createTask;
+exports.getTask = projectManagementFunctions.getTask;
+exports.updateTask = projectManagementFunctions.updateTask;
+exports.deleteTask = projectManagementFunctions.deleteTask;
+exports.listTasks = projectManagementFunctions.listTasks;
 
-  // Handle preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    res.status(200).send('');
-    return;
-  }
+// Export conversational engine functions
+exports.handleMessage = conversationalEngineFunctions.handleMessage;
 
-  try {
-    // Log the incoming request
-    console.log('Conversational Handler called:', {
-      method: req.method,
-      body: req.body,
-      headers: req.headers
-    });
+// Export integration service functions
+exports.connectIntegration = integrationServiceFunctions.connectIntegration;
+exports.listIntegrations = integrationServiceFunctions.listIntegrations;
+exports.jiraAuthUrl = integrationServiceFunctions.jiraAuthUrl;
+exports.jiraCallback = integrationServiceFunctions.jiraCallback;
+exports.createJiraIssue = integrationServiceFunctions.createJiraIssue;
+exports.sendSlackNotification = integrationServiceFunctions.sendSlackNotification;
 
-    // Basic response for now - will be expanded with actual AI logic
-    const response = {
-      message: 'PM-Bot Conversational Engine is running',
-      timestamp: new Date().toISOString(),
-      status: 'success',
-      version: '1.0.1'
-    };
+// Export project intelligence functions
+exports.analyzeProjectRisk = projectIntelligenceFunctions.analyzeProjectRisk;
+exports.aiSprintPlanning = projectIntelligenceFunctions.aiSprintPlanning;
 
-    res.status(200).json(response);
-
-  } catch (error) {
-    console.error('Error in conversational handler:', error);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+// You can add other top-level functions here as needed
+// For example, if you have a project management service:
+// exports.projectManagement = require('./projectManagement');

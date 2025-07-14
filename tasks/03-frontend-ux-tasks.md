@@ -125,7 +125,7 @@ interface HybridLayout {
 - **Descripción:** Implementar pantallas de autenticación con UX optimizada
 - **Prioridad:** 🔴 CRÍTICA
 - **Estimación:** 5 días
-- **Dependencias:** TASK-BE-005, TASK-BE-006, TASK-BE-007, TASK-FE-003
+- **Dependencias:** TASK-BE-005, TASK-BE-006, TASK-BE-007 (ahora con Firestore como backend de datos), TASK-FE-003
 - **Asignado:** Frontend Developer + UX Designer
 - **Criterios de Aceptación:**
   - [ ] Form validation en tiempo real

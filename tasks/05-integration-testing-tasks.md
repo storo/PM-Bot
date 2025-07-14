@@ -53,7 +53,7 @@ const backendTestConfig = {
   unitTesting: 'Jest + TypeScript',
   apiTesting: 'Supertest + Jest',
   mockingLibrary: 'jest-mock + sinon',
-  databaseTesting: 'TestContainers + PostgreSQL',
+  databaseTesting: 'Firestore Emulator',
   coverageTarget: 80
 };
 

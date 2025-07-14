@@ -14,7 +14,9 @@ Plan detallado de desarrollo de IA/ML para PM-Bot, enfocado en crear un motor co
 ## Arquitectura de IA/ML
 
 ### Stack Tecnológico IA
-- **Core NLP:** Google Gemini 1.5 Pro (via ADK)
+- **Core LLM:** Google Gemini 2.0 Flash (via @google/genai SDK)
+- **Multi-Agent Framework:** LangGraphJS (Swarm + Supervisor patterns)
+- **Tools Platform:** Model Context Protocol (MCP) TypeScript SDK
 - **ML Platform:** Vertex AI + AutoML
 - **Data Processing:** Apache Beam + Dataflow
 - **Model Serving:** Vertex AI Endpoints
@@ -23,8 +25,8 @@ Plan detallado de desarrollo de IA/ML para PM-Bot, enfocado en crear un motor co
 - **Monitoring:** Vertex AI Model Monitoring
 
 ### Evolución del Sistema
-1. **Fase 1:** NLU basado en reglas + Gemini ADK
-2. **Fase 2:** Hybrid approach (reglas + ML básico)
+1. **Fase 1:** Multi-agentes con LangGraphJS + MCP tools
+2. **Fase 2:** Hybrid approach (agentes + ML básico)
 3. **Fase 3:** ML avanzado + modelos predictivos
 
 ---
@@ -33,181 +35,563 @@ Plan detallado de desarrollo de IA/ML para PM-Bot, enfocado en crear un motor co
 
 ### 1. Motor Conversacional Base
 
-#### TASK-AI-001: Configuración de Google Gemini ADK
-- **Descripción:** Setup completo de Gemini Agent Development Kit para motor conversacional
+#### TASK-AI-001: Configuración de Arquitectura Multi-Agentes (LangGraphJS + MCP)
+- **Descripción:** Setup completo de LangGraphJS + MCP TypeScript SDK para motor conversacional multi-agentes
 - **Prioridad:** 🔴 CRÍTICA
-- **Estimación:** 3 días
+- **Estimación:** 5 días
 - **Dependencias:** TASK-INFRA-001, TASK-BE-009
 - **Asignado:** AI/ML Engineer + Cloud Architect
 - **Criterios de Aceptación:**
-  - [ ] Gemini ADK configurado y desplegado en Cloud Functions
-  - [ ] Latencia de respuesta <3 segundos para queries simples
+  - [ ] LangGraphJS Swarm configurado con agentes especializados
+  - [ ] MCP servers para Firebase/Firestore tools operativos
+  - [ ] @google/genai SDK integrado para LLM calls
+  - [ ] Latencia de respuesta <3 segundos para queries multi-agente
   - [ ] Configuración en español operativa
   - [ ] Rate limiting y quota management configurados
   - [ ] Health checks y monitoring básico
 
 **Configuración técnica:**
-```python
-# Gemini ADK Configuration
-gemini_config = {
-    'model': 'gemini-1.5-pro',
-    'generation_config': {
-        'temperature': 0.7,
-        'top_p': 0.8,
-        'top_k': 40,
-        'max_output_tokens': 2048,
+```typescript
+// PM-Bot Multi-Agent Architecture
+import { createSwarm, createHandoffTool } from "@langchain/langgraph-swarm";
+import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { GoogleGenAI } from '@google/genai';
+import { MultiServerMCPClient } from "@langchain/mcp-adapters";
+
+const model = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY
+}).getGenerativeModel({
+  model: 'gemini-2.0-flash',
+  generationConfig: {
+    temperature: 0.7,
+    topP: 0.8,
+    topK: 40,
+    maxOutputTokens: 2048,
+  },
+  safetySettings: [
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' }
+  ]
+});
+
+// MCP Servers Configuration
+const mcpClient = new MultiServerMCPClient({
+  mcpServers: {
+    "firestore-tools": {
+      command: "node",
+      args: ["./mcp-servers/firestore-server.js"],
+      transport: "stdio"
     },
-    'safety_settings': {
-        'harassment': 'BLOCK_MEDIUM_AND_ABOVE',
-        'hate_speech': 'BLOCK_MEDIUM_AND_ABOVE',
-        'sexually_explicit': 'BLOCK_MEDIUM_AND_ABOVE',
-        'dangerous_content': 'BLOCK_MEDIUM_AND_ABOVE'
+    "project-management": {
+      command: "node", 
+      args: ["./mcp-servers/pm-tools-server.js"],
+      transport: "stdio"
     }
-}
+  }
+});
+
+// Specialized Agents
+const projectManagerAgent = createReactAgent({
+  llm: model,
+  tools: await mcpClient.getTools(),
+  name: "project_manager",
+  prompt: `Eres el gerente de proyecto principal de PM-Bot. 
+           Especializaciones: Creación de tareas, asignación de recursos, seguimiento de progreso.
+           Usa las herramientas de Firebase para gestionar proyectos y tareas.
+           Si necesitas análisis de riesgos, transfiere a 'risk_analyst'.`
+});
+
+const riskAnalysisAgent = createReactAgent({
+  llm: model,
+  tools: await mcpClient.getTools(),
+  name: "risk_analyst", 
+  prompt: `Eres el especialista en análisis de riesgos de PM-Bot.
+           Especializaciones: Detección de riesgos, análisis predictivo, recomendaciones.
+           Analiza datos de proyecto para identificar posibles problemas.
+           Si necesitas gestión de tareas, transfiere a 'project_manager'.`
+});
+
+// Swarm Configuration
+const pmBotSwarm = createSwarm({
+  agents: [projectManagerAgent, riskAnalysisAgent],
+  defaultActiveAgent: "project_manager"
+}).compile();
 ```
 
-#### TASK-AI-002: NLU Module - Reglas Básicas (MVP)
-- **Descripción:** Implementar NLU híbrido con reglas + Gemini para intent classification y entity extraction
-- **Prioridad:** 🔴 CRÍTICA
-- **Estimación:** 7 días
-- **Dependencias:** TASK-AI-001, TASK-BE-010
-- **Asignado:** NLP Specialist + AI Engineer
-- **Criterios de Aceptación:**
-  - [ ] Intent classification: >90% accuracy para comandos directos
-  - [ ] Entity extraction: >80% accuracy para task_title, assignee, due_date
-  - [ ] Soporte para fechas relativas ("hoy", "mañana", "viernes")
-  - [ ] Confidence scoring implementado
-  - [ ] Fallback a Gemini para casos complejos
-
-**Intent patterns:**
-```python
-class HybridNLU:
-    def __init__(self):
-        self.intent_patterns = {
-            'create_task': [
-                r'crear?\s+tarea\s+(?:para\s+)?(.+)',
-                r'nueva?\s+tarea[:]\s*(.+)',
-                r'agregar?\s+tarea\s+(.+)',
-                r'necesito\s+(?:hacer|crear)\s+(.+)'
-            ],
-            'update_status': [
-                r'(completé|terminé|acabé)\s+(?:la\s+)?tarea\s+(.+)',
-                r'marcar?\s+como\s+(completad|terminad)\s+(.+)',
-                r'la\s+tarea\s+(.+)\s+está\s+(lista|hecha|completa)'
-            ],
-            'get_status': [
-                r'cómo\s+(va|vamos)\s*\??',
-                r'status\s+del?\s+proyecto',
-                r'estado\s+del?\s+proyecto',
-                r'qué\s+tal\s+el\s+progreso'
-            ]
-        }
-        
-    def classify_intent(self, text: str) -> dict:
-        # Rule-based classification first
-        confidence, intent, entities = self._rule_based_classification(text)
-        
-        # Fallback to Gemini if confidence < threshold
-        if confidence < 0.8:
-            return self._gemini_classification(text)
-        
-        return {
-            'intent': intent,
-            'entities': entities,
-            'confidence': confidence,
-            'method': 'rules'
-        }
-```
-
-#### TASK-AI-003: Sistema de Gestión de Diálogo
-- **Descripción:** Implementar state machine para flujos conversacionales complejos
+#### TASK-AI-002: MCP Tools para Firebase/Firestore
+- **Descripción:** Desarrollar MCP servers para exponer herramientas Firebase como tools para agentes
 - **Prioridad:** 🔴 CRÍTICA
 - **Estimación:** 6 días
-- **Dependencias:** TASK-AI-002, TASK-BE-011
-- **Asignado:** Conversation Designer + AI Engineer
+- **Dependencias:** TASK-AI-001, TASK-BE-010
+- **Asignado:** Backend Developer + AI Engineer
 - **Criterios de Aceptación:**
-  - [ ] State machine para task creation flow completo
-  - [ ] Manejo de información faltante con prompts naturales
-  - [ ] Context tracking entre turns de conversación
-  - [ ] Error recovery y clarification flows
-  - [ ] Multi-turn conversation support
+  - [ ] MCP server para operaciones Firestore (CRUD proyectos/tareas)
+  - [ ] MCP server para análisis de datos de proyecto
+  - [ ] Tool validation y error handling implementado
+  - [ ] Schemas TypeScript para todas las tools
+  - [ ] Rate limiting y security configurados
+  - [ ] Logging y monitoring de tool usage
 
-**Dialog states:**
-```python
-from enum import Enum
-from typing import Dict, Any, Optional
+**MCP Tools Implementation:**
+```typescript
+// MCP Server para Firestore Operations
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { admin } from 'firebase-admin';
 
-class DialogState(Enum):
-    INITIAL = "initial"
-    AWAITING_TASK_TITLE = "awaiting_task_title"
-    AWAITING_ASSIGNEE = "awaiting_assignee"
-    AWAITING_DUE_DATE = "awaiting_due_date"
-    CONFIRMING_TASK = "confirming_task"
-    TASK_CREATED = "task_created"
-    CLARIFYING_AMBIGUITY = "clarifying_ambiguity"
+const mcpServer = new McpServer({
+  name: "firestore-pm-tools",
+  version: "1.0.0"
+});
 
-class DialogManager:
-    def __init__(self):
-        self.transitions = {
-            DialogState.INITIAL: {
-                'create_task': self._handle_create_task
-            },
-            DialogState.AWAITING_ASSIGNEE: {
-                'provide_assignee': self._handle_assignee_provided,
-                'list_members': self._show_team_members
-            },
-            DialogState.AWAITING_DUE_DATE: {
-                'provide_date': self._handle_date_provided,
-                'no_date': self._skip_due_date
-            }
-        }
+// Tool: Crear Proyecto
+mcpServer.registerTool("createProject", {
+  title: "Crear Proyecto",
+  description: "Crear nuevo proyecto en Firebase con configuración inicial",
+  inputSchema: {
+    name: z.string().describe("Nombre del proyecto"),
+    description: z.string().describe("Descripción del proyecto"),
+    teamMembers: z.array(z.string()).describe("IDs de miembros del equipo"),
+    methodology: z.enum(['scrum', 'kanban', 'waterfall']).describe("Metodología del proyecto"),
+    startDate: z.string().describe("Fecha de inicio (ISO format)")
+  }
+}, async ({ name, description, teamMembers, methodology, startDate }) => {
+  try {
+    const projectRef = await admin.firestore().collection('projects').add({
+      name,
+      description,
+      teamMembers,
+      methodology,
+      startDate: new Date(startDate),
+      createdAt: new Date(),
+      status: 'active',
+      progress: 0
+    });
+
+    return {
+      content: [{
+        type: "text",
+        text: `✅ Proyecto "${name}" creado exitosamente con ID: ${projectRef.id}`
+      }]
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: "text",
+        text: `❌ Error al crear proyecto: ${error.message}`
+      }],
+      isError: true
+    };
+  }
+});
+
+// Tool: Crear Tarea
+mcpServer.registerTool("createTask", {
+  title: "Crear Tarea",
+  description: "Crear nueva tarea en un proyecto específico",
+  inputSchema: {
+    projectId: z.string().describe("ID del proyecto"),
+    title: z.string().describe("Título de la tarea"),
+    description: z.string().optional().describe("Descripción detallada"),
+    assignee: z.string().describe("ID del usuario asignado"),
+    priority: z.enum(['low', 'medium', 'high', 'critical']).describe("Prioridad de la tarea"),
+    dueDate: z.string().optional().describe("Fecha límite (ISO format)"),
+    estimatedHours: z.number().optional().describe("Horas estimadas")
+  }
+}, async ({ projectId, title, description, assignee, priority, dueDate, estimatedHours }) => {
+  try {
+    const taskRef = await admin.firestore().collection('tasks').add({
+      projectId,
+      title,
+      description: description || '',
+      assignee,
+      priority,
+      status: 'pending',
+      dueDate: dueDate ? new Date(dueDate) : null,
+      estimatedHours: estimatedHours || 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    // Actualizar progreso del proyecto
+    await admin.firestore().collection('projects').doc(projectId).update({
+      updatedAt: new Date()
+    });
+
+    return {
+      content: [{
+        type: "text",
+        text: `✅ Tarea "${title}" creada y asignada a ${assignee}. ID: ${taskRef.id}`
+      }]
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: "text", 
+        text: `❌ Error al crear tarea: ${error.message}`
+      }],
+      isError: true
+    };
+  }
+});
+
+// Tool: Obtener Estado del Proyecto  
+mcpServer.registerTool("getProjectStatus", {
+  title: "Estado del Proyecto",
+  description: "Obtener información completa del estado de un proyecto",
+  inputSchema: {
+    projectId: z.string().describe("ID del proyecto")
+  }
+}, async ({ projectId }) => {
+  try {
+    const projectDoc = await admin.firestore().collection('projects').doc(projectId).get();
+    const tasksSnapshot = await admin.firestore()
+      .collection('tasks')
+      .where('projectId', '==', projectId)
+      .get();
+
+    if (!projectDoc.exists) {
+      return {
+        content: [{
+          type: "text",
+          text: `❌ Proyecto con ID ${projectId} no encontrado`
+        }],
+        isError: true
+      };
+    }
+
+    const project = projectDoc.data();
+    const tasks = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     
-    def process_input(self, session_id: str, nlu_result: dict) -> dict:
-        current_state = self._get_session_state(session_id)
-        intent = nlu_result['intent']
+    const statusCounts = tasks.reduce((acc, task) => {
+      acc[task.status] = (acc[task.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const progressPercent = tasks.length > 0 ? 
+      Math.round((statusCounts.completed || 0) / tasks.length * 100) : 0;
+
+    return {
+      content: [{
+        type: "text",
+        text: `📊 **Estado del Proyecto: ${project.name}**
         
-        if current_state in self.transitions:
-            if intent in self.transitions[current_state]:
-                handler = self.transitions[current_state][intent]
-                return handler(session_id, nlu_result)
-        
-        return self._handle_fallback(session_id, nlu_result)
+📈 Progreso: ${progressPercent}% completado
+📋 Tareas totales: ${tasks.length}
+✅ Completadas: ${statusCounts.completed || 0}
+🔄 En progreso: ${statusCounts.in_progress || 0}  
+⏳ Pendientes: ${statusCounts.pending || 0}
+🚫 Bloqueadas: ${statusCounts.blocked || 0}
+
+👥 Equipo: ${project.teamMembers.length} miembros
+📅 Metodología: ${project.methodology}`
+      }]
+    };
+  } catch (error) {
+    return {
+      content: [{
+        type: "text",
+        text: `❌ Error al obtener estado: ${error.message}`
+      }],
+      isError: true
+    };
+  }
+});
+
+// Initialize MCP Server
+async function main() {
+  const transport = new StdioServerTransport();
+  await mcpServer.connect(transport);
+  console.log("Firestore MCP Server running...");
+}
+
+main().catch(console.error);
+```
+
+#### TASK-AI-003: Orquestación del Motor Conversacional
+- **Descripción:** Integrar agentes especializados en motor conversacional unificado para Cloud Functions
+- **Prioridad:** 🔴 CRÍTICA
+- **Estimación:** 7 días
+- **Dependencias:** TASK-AI-002, TASK-BE-011
+- **Asignado:** AI Engineer + Backend Developer
+- **Criterios de Aceptación:**
+  - [ ] ConversationalEngine class que orquesta agentes LangGraph
+  - [ ] Message routing inteligente entre agentes especializados
+  - [ ] Context persistence en Firestore para multi-turn conversations
+  - [ ] Error recovery y fallback mechanisms
+  - [ ] Session management y timeout handling
+  - [ ] Integration con Cloud Functions HTTP endpoints
+
+**Conversational Engine Implementation:**
+```typescript
+// functions/src/conversationalEngine.ts
+import { createSwarm } from "@langchain/langgraph-swarm";
+import { MultiServerMCPClient } from "@langchain/mcp-adapters";
+import { GoogleGenAI } from '@google/genai';
+import { admin } from 'firebase-admin';
+
+interface ConversationContext {
+  sessionId: string;
+  userId: string;
+  projectId?: string;
+  messageHistory: any[];
+  currentAgent: string;
+  entityCarryover: Record<string, any>;
+  timestamp: Date;
+}
+
+export class PMBotConversationalEngine {
+  private swarm: any;
+  private mcpClient: MultiServerMCPClient;
+  private model: any;
+
+  constructor() {
+    this.initializeModel();
+    this.initializeMCPClient();
+    this.initializeAgentSwarm();
+  }
+
+  private initializeModel() {
+    this.model = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY
+    }).getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.8,
+        maxOutputTokens: 2048,
+      }
+    });
+  }
+
+  private async initializeMCPClient() {
+    this.mcpClient = new MultiServerMCPClient({
+      mcpServers: {
+        "firestore-tools": {
+          command: "node",
+          args: ["./mcp-servers/firestore-server.js"],
+          transport: "stdio"
+        },
+        "risk-analysis": {
+          command: "node",
+          args: ["./mcp-servers/risk-analysis-server.js"], 
+          transport: "stdio"
+        }
+      }
+    });
+  }
+
+  private async initializeAgentSwarm() {
+    const tools = await this.mcpClient.getTools();
+
+    const projectManagerAgent = createReactAgent({
+      llm: this.model,
+      tools: tools.filter(tool => 
+        ['createProject', 'createTask', 'getProjectStatus', 'updateTask'].includes(tool.name)
+      ),
+      name: "project_manager",
+      prompt: `Eres el gerente de proyecto principal de PM-Bot.
+               ESPECIALIZACIÓN: Gestión de proyectos, creación de tareas, asignación de recursos.
+               
+               INSTRUCCIONES:
+               - Responde en español de manera natural y amigable
+               - Para crear tareas, usa la herramienta 'createTask' con todos los parámetros requeridos
+               - Para consultar estado, usa 'getProjectStatus'
+               - Si necesitas análisis de riesgos o datos complejos, transfiere a 'risk_analyst'
+               - Siempre confirma las acciones importantes antes de ejecutarlas
+               
+               CONTEXTO: Eres parte de un sistema multi-agente especializado.`
+    });
+
+    const riskAnalysisAgent = createReactAgent({
+      llm: this.model,
+      tools: tools.filter(tool => 
+        ['analyzeProjectRisk', 'getProjectMetrics', 'generateRiskReport'].includes(tool.name)
+      ),
+      name: "risk_analyst",
+      prompt: `Eres el especialista en análisis de riesgos de PM-Bot.
+               ESPECIALIZACIÓN: Análisis predictivo, detección de riesgos, métricas de proyecto.
+               
+               INSTRUCCIONES:
+               - Analiza datos de proyecto para identificar posibles problemas
+               - Proporciona recomendaciones accionables y específicas
+               - Usa gráficos y métricas cuando sea apropiado
+               - Si necesitas gestionar tareas o proyectos, transfiere a 'project_manager'
+               
+               CONTEXTO: Ayudas a equipos a anticipar y mitigar riesgos de proyecto.`
+    });
+
+    this.swarm = createSwarm({
+      agents: [projectManagerAgent, riskAnalysisAgent],
+      defaultActiveAgent: "project_manager"
+    }).compile();
+  }
+
+  async processMessage(input: {
+    message: string;
+    sessionId: string;
+    userId: string;
+    projectId?: string;
+  }): Promise<{
+    response: string;
+    agent: string;
+    context: ConversationContext;
+  }> {
+    try {
+      // Obtener contexto de conversación
+      const context = await this.getConversationContext(input.sessionId, input.userId);
+      
+      // Actualizar contexto con nuevo mensaje
+      context.messageHistory.push({
+        role: "user",
+        content: input.message,
+        timestamp: new Date()
+      });
+
+      // Procesar con swarm de agentes
+      const result = await this.swarm.stream({
+        messages: [
+          ...this.buildContextMessages(context),
+          { role: "user", content: input.message }
+        ]
+      });
+
+      // Extraer respuesta del agente
+      let response = "";
+      let activeAgent = context.currentAgent;
+      
+      for await (const chunk of result) {
+        if (chunk.messages && chunk.messages.length > 0) {
+          const lastMessage = chunk.messages[chunk.messages.length - 1];
+          if (lastMessage.content) {
+            response = lastMessage.content;
+          }
+          // Detectar cambio de agente
+          if (lastMessage.name && lastMessage.name !== activeAgent) {
+            activeAgent = lastMessage.name;
+          }
+        }
+      }
+
+      // Actualizar contexto
+      context.messageHistory.push({
+        role: "assistant", 
+        content: response,
+        agent: activeAgent,
+        timestamp: new Date()
+      });
+      context.currentAgent = activeAgent;
+      context.timestamp = new Date();
+
+      // Persistir contexto
+      await this.saveConversationContext(context);
+
+      return {
+        response,
+        agent: activeAgent,
+        context
+      };
+
+    } catch (error) {
+      console.error('Error in conversational engine:', error);
+      return {
+        response: "Lo siento, hubo un error procesando tu mensaje. ¿Podrías intentar de nuevo?",
+        agent: "project_manager",
+        context: await this.getConversationContext(input.sessionId, input.userId)
+      };
+    }
+  }
+
+  private async getConversationContext(sessionId: string, userId: string): Promise<ConversationContext> {
+    try {
+      const doc = await admin.firestore()
+        .collection('conversation_contexts')
+        .doc(sessionId)
+        .get();
+
+      if (doc.exists) {
+        return doc.data() as ConversationContext;
+      }
+    } catch (error) {
+      console.error('Error getting conversation context:', error);
+    }
+
+    // Crear nuevo contexto
+    return {
+      sessionId,
+      userId,
+      messageHistory: [],
+      currentAgent: "project_manager",
+      entityCarryover: {},
+      timestamp: new Date()
+    };
+  }
+
+  private async saveConversationContext(context: ConversationContext): Promise<void> {
+    try {
+      await admin.firestore()
+        .collection('conversation_contexts')
+        .doc(context.sessionId)
+        .set(context);
+    } catch (error) {
+      console.error('Error saving conversation context:', error);
+    }
+  }
+
+  private buildContextMessages(context: ConversationContext): any[] {
+    // Incluir últimos 5 mensajes para contexto
+    const recentHistory = context.messageHistory.slice(-5);
+    return recentHistory.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+  }
+
+  async closeSession(sessionId: string): Promise<void> {
+    try {
+      await this.mcpClient.close();
+      await admin.firestore()
+        .collection('conversation_contexts')
+        .doc(sessionId)
+        .update({ closedAt: new Date() });
+    } catch (error) {
+      console.error('Error closing session:', error);
+    }
+  }
+}
+
+// Export singleton instance
+export const pmBotEngine = new PMBotConversationalEngine();
 ```
 
 #### TASK-AI-004: Context Management y Memory
-- **Descripción:** Implementar gestión de contexto conversacional en Redis
+- **Descripción:** Implementar gestión de contexto conversacional en Firestore
 - **Prioridad:** 🟡 ALTA
 - **Estimación:** 4 días
 - **Dependencias:** TASK-AI-003, TASK-BE-002
 - **Asignado:** AI Engineer
 - **Criterios de Aceptación:**
-  - [ ] Session context persistido en Redis con TTL
+  - [ ] Session context persistido en Firestore
   - [ ] Context window de últimos 5 mensajes
   - [ ] Entity carryover entre turns
   - [ ] Project context awareness
   - [ ] User preference learning básico
 
-**Context structure:**
-```python
-@dataclass
-class ConversationContext:
-    session_id: str
-    user_id: int
-    project_id: Optional[int]
-    current_intent: Optional[str]
-    entities: Dict[str, Any]
-    dialog_state: DialogState
-    message_history: List[Message]
-    last_mentioned_tasks: List[int]
-    user_preferences: Dict[str, Any]
-    timestamp: datetime
-    
-    def to_redis(self) -> str:
-        return json.dumps(asdict(self), default=str)
-    
-    @classmethod
-    def from_redis(cls, data: str) -> 'ConversationContext':
-        return cls(**json.loads(data))
+**Context structure (Firestore Document):**
+```json
+{
+  "sessionId": "session123",
+  "userId": "user456",
+  "projectId": "project789",
+  "currentIntent": "create_task",
+  "entities": {},
+  "dialogState": "awaiting_assignee",
+  "messageHistory": [],
+  "lastMentionedTasks": [],
+  "userPreferences": {},
+  "timestamp": "2025-07-13T10:00:00Z"
+}
 ```
 
 ### 2. Data Pipeline y Feature Engineering

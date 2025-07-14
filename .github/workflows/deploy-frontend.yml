@@ -31,6 +31,10 @@ jobs:
         working-directory: web
         run: npm test -- --passWithNoTests --watchAll=false
 
+      - name: Run E2E Tests
+        working-directory: web
+        run: npm run e2e
+
       - name: Build React App
         working-directory: web
         run: npm run build

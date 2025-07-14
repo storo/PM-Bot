@@ -9,22 +9,25 @@
 
 ## Resumen Ejecutivo
 
-Plan detallado de desarrollo backend para PM-Bot, enfocado en arquitectura de microservicios con PostgreSQL para datos estructurados, Redis para estado conversacional, y Firebase Auth para gestión de usuarios. Las tareas están alineadas con los casos de uso (UC-001 a UC-103) y la estrategia de implementación en 3 fases.
+Plan detallado de desarrollo backend para PM-Bot, enfocado en arquitectura de microservicios con Firestore para persistencia de datos y estado conversacional, y Firebase Auth para gestión de usuarios. Las tareas están alineadas con los casos de uso (UC-001 a UC-103) y la estrategia de implementación en 3 fases.
 
 ## Arquitectura de Microservicios Backend
 
 ### Servicios Principales
 1. **Authentication Service** - Gestión de usuarios y autenticación
-2. **Conversational Engine** - Motor de chat con NLU/NLP
+2. **Conversational Engine** - Motor multi-agente con LangGraphJS + MCP
 3. **Project Management Service** - Lógica de negocio de proyectos/tareas
-4. **Integration Service** - Conectividad con APIs externas
+4. **MCP Tools Layer** - Servicios MCP para exposición de herramientas
 5. **Project Intelligence Service** - IA predictiva (Post-MVP)
 
 ### Stack Tecnológico
-- **Base de Datos:** PostgreSQL + Redis
-- **APIs:** RESTful + GraphQL (selectivo)
+- **Base de Datos:** Firestore
+- **Multi-Agentes:** LangGraphJS (Swarm + Supervisor patterns)
+- **Tools Platform:** Model Context Protocol (MCP) TypeScript SDK
+- **LLM:** Google Gemini 2.0 Flash via @google/genai
+- **APIs:** RESTful + Cloud Functions HTTP endpoints
 - **Autenticación:** JWT + Firebase Auth + OAuth 2.0
-- **Deployment:** Cloud Run containers
+- **Deployment:** Cloud Functions (Node.js)
 - **Message Queue:** Cloud Pub/Sub
 
 ---
@@ -33,42 +36,43 @@ Plan detallado de desarrollo backend para PM-Bot, enfocado en arquitectura de mi
 
 ### 1. Infraestructura Backend Core
 
-#### TASK-BE-001: Configuración de Base de Datos PostgreSQL y Esquema
-- **Descripción:** Provisionar PostgreSQL y crear schema inicial con tablas core
+#### TASK-BE-001: Configuración de Base de Datos Firestore y Esquema
+- **Descripción:** Provisionar Firestore y definir estructura de colecciones inicial con documentos core
 - **Prioridad:** 🔴 CRÍTICA
 - **Estimación:** 3 días
 - **Dependencias:** TASK-INFRA-001 (DevOps)
 - **Asignado:** Database Developer + Backend Lead
 - **Criterios de Aceptación:**
-  - [ ] Instancia PostgreSQL operativa y accesible
-  - [ ] Tablas creadas: `users`, `auth_methods`, `projects`, `tasks`, `project_members`
-  - [ ] Índices básicos configurados
-  - [ ] Migrations framework configurado
-  - [ ] Connection pooling configurado
+  - [ ] Instancia Firestore operativa y accesible
+  - [ ] Colecciones creadas: `users`, `projects`, `tasks`, `project_members`
+  - [ ] Reglas de seguridad básicas configuradas
+  - [ ] Estructura de documentos definida para `users`, `projects`, `tasks`, `project_members`
   
-**Schema SQL:**
-```sql
--- Ver technical-architecture.md para schema completo
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255),
-    full_name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
+**Schema Firestore (ejemplo):**
+```json
+// Ver technical-architecture.md para schema completo
+{
+    "users": {
+        "userId123": {
+            "email": "user@example.com",
+            "fullName": "John Doe",
+            "createdAt": "2025-07-13T10:00:00Z"
+        }
+    }
+}
 ```
 
-#### TASK-BE-002: Integración con Redis para Estado Conversacional
-- **Descripción:** Implementar cliente Redis para gestión de sesiones conversacionales
+#### TASK-BE-002: Gestión de Estado Conversacional con Firestore
+- **Descripción:** Implementar gestión de sesiones conversacionales directamente en Firestore
 - **Prioridad:** 🔴 CRÍTICA
-- **Estimación:** 1 día
-- **Dependencias:** TASK-INFRA-003 (Redis Memorystore)
+- **Estimación:** 2 días
+- **Dependencias:** TASK-INFRA-001 (Firestore)
 - **Asignado:** Backend Lead
 - **Criterios de Aceptación:**
-  - [ ] Cliente Redis conecta exitosamente
-  - [ ] TTL configurado para sesiones (1 hora default)
+  - [ ] Firestore para sesiones conversacionales configurado
+  - [ ] Documentos de sesión creados y actualizados correctamente
   - [ ] Serialización/deserialización JSON funcionando
-  - [ ] Connection retry logic implementado
+  - [ ] Reglas de seguridad para sesiones configuradas
 
 #### TASK-BE-003: API Gateway Backend Configuration
 - **Descripción:** Configurar routing y middleware para API Gateway
@@ -89,7 +93,7 @@ CREATE TABLE users (
 - **Descripción:** Desarrollar microservicio de autenticación con Firebase Auth integration
 - **Prioridad:** 🔴 CRÍTICA
 - **Estimación:** 4 días
-- **Dependencias:** TASK-BE-001, Firebase Auth configurado
+- **Dependencias:** TASK-BE-001 (Firestore), Firebase Auth configurado
 - **Asignado:** Backend Developer + Security Review
 - **Criterios de Aceptación:**
   - [ ] Microservicio deployado en Cloud Run
@@ -166,7 +170,7 @@ GET  /auth/me          // User profile
 - **Descripción:** Desarrollar microservicio base para motor conversacional
 - **Prioridad:** 🔴 CRÍTICA
 - **Estimación:** 3 días
-- **Dependencias:** TASK-BE-002 (Redis), API Gateway
+- **Dependencias:** TASK-BE-002 (Firestore), API Gateway
 - **Asignado:** Backend Lead + NLP Developer
 - **Criterios de Aceptación:**
   - [ ] Microservicio desplegado en Cloud Run
@@ -213,7 +217,7 @@ class SimplifiedNLU:
 - **Asignado:** Backend Lead + NLP Developer
 - **Criterios de Aceptación:**
   - [ ] State machine para flujos conversacionales
-  - [ ] Context tracking en Redis
+  - [ ] Context tracking en Firestore
   - [ ] Clarification requests automatizadas
   - [ ] Error recovery y fallback responses
   - [ ] Multi-turn conversation support
@@ -225,7 +229,7 @@ class SimplifiedNLU:
 - **Dependencias:** TASK-BE-011
 - **Asignado:** Backend Developer
 - **Criterios de Aceptación:**
-  - [ ] Session state persistido en Redis
+  - [ ] Session state persistido en Firestore
   - [ ] Context window de últimos 5 mensajes
   - [ ] User intent history tracking
   - [ ] Session timeout handling
@@ -237,7 +241,7 @@ class SimplifiedNLU:
 - **Descripción:** Desarrollar servicio core para gestión de proyectos y tareas
 - **Prioridad:** 🔴 CRÍTICA
 - **Estimación:** 4 días
-- **Dependencias:** TASK-BE-001 (PostgreSQL schema)
+- **Dependencias:** TASK-BE-001 (Firestore schema)
 - **Asignado:** Backend Developer + Business Logic Expert
 - **Criterios de Aceptación:**
   - [ ] Microservicio desplegado
@@ -305,30 +309,29 @@ class SimplifiedNLU:
 ### 5. Optimización y Performance
 
 #### TASK-BE-018: Database Query Optimization
-- **Descripción:** Optimizar queries más frecuentes y crear índices compuestos
+- **Descripción:** Optimizar consultas de Firestore y definir índices compuestos
 - **Prioridad:** 🟡 ALTA
 - **Estimación:** 3 días
 - **Dependencias:** Todas las CRUD operations implementadas
-- **Asignado:** DBA + Backend Developer
+- **Asignado:** Backend Developer + Firestore Expert
 - **Criterios de Aceptación:**
-  - [ ] Índices compuestos para queries frecuentes
-  - [ ] Query execution plans optimizados
-  - [ ] Todas las queries <1 segundo
-  - [ ] Connection pooling optimizado
-  - [ ] Database monitoring configurado
+  - [ ] Índices compuestos para consultas frecuentes definidos
+  - [ ] Consultas optimizadas para performance en Firestore
+  - [ ] Todas las consultas <1 segundo
+  - [ ] Monitoreo de uso de Firestore configurado
 
 #### TASK-BE-019: Caching Strategy Implementation
-- **Descripción:** Implementar caching inteligente para datos frecuentemente accedidos
+- **Descripción:** Implementar caching inteligente para datos frecuentemente accedidos (Firestore SDK cache y cache a nivel de aplicación)
 - **Prioridad:** 🟡 ALTA
 - **Estimación:** 3 días
-- **Dependencias:** TASK-BE-002 (Redis)
+- **Dependencias:** TASK-BE-002 (Firestore)
 - **Asignado:** Backend Developer
 - **Criterios de Aceptación:**
-  - [ ] Cache de project metrics (UC-005)
-  - [ ] Cache de user sessions
-  - [ ] Cache invalidation strategies
+  - [ ] Cache de project metrics (UC-005) implementado
+  - [ ] Cache de user sessions implementado
+  - [ ] Estrategias de invalidación de cache definidas
   - [ ] Cache hit ratio >80%
-  - [ ] TTL policies configuradas
+  - [ ] Políticas de TTL (si aplica, con Cloud Functions para limpieza)
 
 #### TASK-BE-020: API Rate Limiting y Throttling
 - **Descripción:** Implementar rate limiting avanzado y request throttling
@@ -403,10 +406,10 @@ class SimplifiedNLU:
 - **Descripción:** Implementar encriptación de datos sensibles y compliance
 - **Prioridad:** 🟡 ALTA
 - **Estimación:** 3 días
-- **Dependencias:** TASK-BE-001 (Database)
+- **Dependencias:** TASK-BE-001 (Firestore)
 - **Asignado:** Security Engineer
 - **Criterios de Aceptación:**
-  - [ ] Database encryption at rest
+  - [ ] Firestore encryption at rest configurado
   - [ ] API payload encryption
   - [ ] PII data handling compliance
   - [ ] Data retention policies
@@ -548,55 +551,60 @@ GET    /integrations               // List active integrations
 
 ## Database Schema Crítico
 
-### Core Tables
-```sql
--- Users table
-CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255),
-    full_name VARCHAR(255) NOT NULL,
-    avatar_url VARCHAR(500),
-    email_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+### Colecciones Principales (Firestore)
+```json
+// Colección: users
+// Documento: {userId}
+{
+  "email": "user@example.com",
+  "fullName": "John Doe",
+  "avatarUrl": "https://example.com/avatar.jpg",
+  "emailVerified": false,
+  "createdAt": "2025-07-13T10:00:00Z",
+  "updatedAt": "2025-07-13T10:00:00Z"
+}
 
--- Projects table
-CREATE TABLE projects (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    owner_id INTEGER REFERENCES users(id),
-    methodology VARCHAR(50) DEFAULT 'agile',
-    settings JSONB DEFAULT '{}',
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+// Colección: projects
+// Documento: {projectId}
+{
+  "name": "My First Project",
+  "description": "A project to manage tasks.",
+  "ownerId": "userId123",
+  "methodology": "agile",
+  "settings": {},
+  "createdAt": "2025-07-13T10:00:00Z",
+  "updatedAt": "2025-07-13T10:00:00Z"
+}
 
--- Tasks table
-CREATE TABLE tasks (
-    id SERIAL PRIMARY KEY,
-    project_id INTEGER REFERENCES projects(id),
-    title VARCHAR(500) NOT NULL,
-    description TEXT,
-    status VARCHAR(50) DEFAULT 'todo',
-    assignee_id INTEGER REFERENCES users(id),
-    creator_id INTEGER REFERENCES users(id),
-    due_date DATE,
-    priority VARCHAR(20) DEFAULT 'medium',
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+// Colección: tasks
+// Documento: {taskId}
+{
+  "projectId": "projectId456",
+  "title": "Implement authentication",
+  "description": "Implement user registration and login.",
+  "status": "todo", // "todo", "in_progress", "done", "blocked"
+  "assigneeId": "userId789",
+  "creatorId": "userId123",
+  "dueDate": "2025-07-20", // ISO 8601 date string
+  "priority": "high", // "low", "medium", "high", "urgent"
+  "storyPoints": 5,
+  "externalId": "JIRA-123",
+  "externalSystem": "jira",
+  "createdAt": "2025-07-13T10:00:00Z",
+  "updatedAt": "2025-07-13T10:00:00Z"
+}
 
--- Conversation sessions (Redis structure)
-session:user123:conv456 = {
-    "user_id": 123,
-    "project_id": 789,
-    "current_intent": "create_task",
-    "entities": {...},
-    "conversation_step": "awaiting_assignee",
-    "context": {...}
+// Colección: conversations (para estado conversacional)
+// Documento: {sessionId}
+{
+  "userId": "123",
+  "projectId": "789",
+  "currentIntent": "create_task",
+  "entities": {},
+  "conversationStep": "awaiting_assignee",
+  "context": {},
+  "dialogHistory": [],
+  "lastActivity": "2025-07-13T10:30:00Z"
 }
 ```
 
@@ -609,15 +617,14 @@ session:user123:conv456 = {
 - **Availability:** 99.9% uptime
 
 ### Database Performance
-- **Query Performance:** <100ms for simple queries, <1s for complex
-- **Connection Pool:** 80%+ utilization efficiency
-- **Index Hit Ratio:** >95%
-- **Deadlock Rate:** <0.01%
+- **Query Performance:** <100ms for simple queries, <1s for complex (Firestore)
+- **Document Reads/Writes:** Optimized for cost and performance
+- **Index Usage:** Efficient use of Firestore indexes
 
 ### Conversation Performance
 - **NLU Latency:** <500ms for intent classification
 - **Dialog Response:** <1s for simple responses
-- **Context Retrieval:** <100ms from Redis
+- **Context Retrieval:** <100ms from Firestore
 - **Session Persistence:** 99.9% reliability
 
 ## Herramientas y Frameworks
@@ -625,7 +632,7 @@ session:user123:conv456 = {
 ### Development
 - **Language:** TypeScript/Node.js (primary), Python (ML/NLP)
 - **Framework:** Express.js/Fastify, FastAPI (Python)
-- **ORM:** Prisma (PostgreSQL), ioredis (Redis)
+- **ORM:** Firebase Admin SDK (Firestore)
 - **Validation:** Joi/Zod for request validation
 
 ### Testing
@@ -659,8 +666,8 @@ session:user123:conv456 = {
 ### Riesgos Técnicos
 1. **NLU Accuracy:** Baja precisión en intent classification
    - **Mitigación:** Extensive testing, fallback flows, continuous training
-2. **Database Performance:** Queries lentas con crecimiento de datos
-   - **Mitigación:** Query optimization, indexing strategy, caching
+2. **Database Performance:** Consultas lentas con crecimiento de datos
+   - **Mitigación:** Optimización de consultas de Firestore, definición de índices, desnormalización estratégica.
 3. **Integration Failures:** APIs externas inestables
    - **Mitigación:** Circuit breakers, retry logic, graceful degradation
 4. **Security Vulnerabilities:** Exposición de datos sensibles

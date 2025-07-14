@@ -46,12 +46,12 @@ jobs:
 
       - name: Deploy to Cloud Functions
         run: |
-          gcloud functions deploy pm-bot-conversational-engine \
+          gcloud functions deploy handleMessage \
             --runtime nodejs20 \
             --trigger-http \
             --allow-unauthenticated \
             --source ./functions \
-            --entry-point conversationalHandler \
+            --entry-point handleMessage \
             --region us-central1 \
             --service-account pm-bot-prod@appspot.gserviceaccount.com \
             --project pm-bot-prod \

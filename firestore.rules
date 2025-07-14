@@ -3,26 +3,76 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can read their own user document, but not others.
+    // Global functions for reusability
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Function to check if the requesting user is a member of the project
+    function isProjectMember(projectId) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/projects/$(projectId)/members/$(request.auth.uid));
+    }
+
+    // Function to check if the requesting user is the owner of the project
+    function isProjectOwner(projectId) {
+      return isAuthenticated() && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
+    }
+
+    // Users Collection: /users/{userId}
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId;
+      allow read, update: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated(); // Allow any authenticated user to create their own user document
     }
 
-    // A user can create a project.
-    // Only members of a project can read or write to it.
+    // Projects Collection: /projects/{projectId}
     match /projects/{projectId} {
-      allow read, write: if request.auth.uid in resource.data.members;
-      allow create: if request.auth.uid != null;
+      // Allow authenticated users to create a project
+      allow create: if isAuthenticated();
+
+      // Read access: Only project members can read project details
+      allow read: if isProjectMember(projectId);
+
+      // Update access: Only the project owner can update project details
+      allow update: if isProjectOwner(projectId);
+
+      // Delete access: Only the project owner can delete a project
+      allow delete: if isProjectOwner(projectId);
+
+      // Project Members Subcollection: /projects/{projectId}/members/{memberId}
+      match /members/{memberId} {
+        // Allow project owner to create/update/delete members
+        allow write: if isProjectOwner(projectId);
+        // Allow any authenticated user to read their own membership status
+        allow read: if isAuthenticated() && request.auth.uid == memberId;
+        // Optional: Allow project members to read all members (useful for team views)
+        // allow read: if isProjectMember(projectId);
+      }
     }
 
-    // Tasks can only be accessed by members of the project they belong to.
+    // Tasks Collection: /tasks/{taskId}
     match /tasks/{taskId} {
-      allow read, write: if get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.members.hasAny([request.auth.uid]);
+      // Create access: Only project members can create tasks
+      allow create: if isProjectMember(request.resource.data.projectId);
+
+      // Read and Update access: Only project members can read or update tasks
+      allow read, update: if isProjectMember(resource.data.projectId);
+
+      // Delete access: Only the task creator or project owner can delete a task
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.creatorId || isProjectOwner(resource.data.projectId));
     }
 
-    // Conversations are part of a project and can only be accessed by project members.
-    match /conversations/{conversationId} {
-        allow read, write: if get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.members.hasAny([request.auth.uid]);
+    // Conversation Contexts Collection: /conversation_contexts/{sessionId}
+    match /conversation_contexts/{sessionId} {
+      // Allow read/write only if the userId in the session context matches the authenticated user's UID
+      allow read, write: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Task History Collection: /task_history/{historyId}
+    // IMPORTANT: This rule assumes that the 'task_history' document contains a 'projectId' field.
+    // If 'projectId' is not directly in the 'task_history' document, this rule will not work as intended.
+    match /task_history/{historyId} {
+      // Allow read/write only if the user is a member of the project the task belongs to
+      allow read, write: if isProjectMember(resource.data.projectId);
     }
   }
 }

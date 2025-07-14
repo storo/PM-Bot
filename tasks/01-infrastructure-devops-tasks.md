@@ -49,17 +49,7 @@ Plan detallado de infraestructura y DevOps para PM-Bot, enfocado en arquitectura
   - [ ] Índices básicos configurados
   - [ ] Schema documentado
 
-#### TASK-INFRA-003: Aprovisionamiento de Redis (Memorystore)
-- **Descripción:** Desplegar instancia Redis para estado conversacional y caching
-- **Prioridad:** 🔴 CRÍTICA
-- **Estimación:** 1 día
-- **Dependencias:** TASK-INFRA-001
-- **Asignado:** DevOps Lead
-- **Criterios de Aceptación:**
-  - [ ] Instancia Memorystore Redis operativa
-  - [ ] Conectividad desde Cloud Functions verificada
-  - [ ] Configuración de TTL por defecto
-  - [ ] Monitoring básico configurado
+
 
 ### 2. DevOps & CI/CD
 
@@ -195,7 +185,7 @@ Plan detallado de infraestructura y DevOps para PM-Bot, enfocado en arquitectura
 - **Prioridad:** 🟡 ALTA
 - **Estimación:** 2 días
 - **Dependencias:** Implementación UC-004, UC-005, UC-006
-- **Asignado:** Backend Developer + DBA
+- **Asignado:** Backend Developer + Firestore Expert
 - **Criterios de Aceptación:**
   - [ ] Índices compuestos para queries principales
   - [ ] Query performance <1 segundo
