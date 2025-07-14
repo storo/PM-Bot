@@ -1,9 +1,8 @@
-name: Deploy Frontend to Firebase Hosting
+name: Deploy Frontend to Firebase Hosting (DISABLED)
 
 on:
-  push:
-    branches:
-      - main
+  # DISABLED - using new workflow
+  workflow_dispatch:
 
 jobs:
   build_and_test:

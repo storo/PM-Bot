@@ -1,22 +1,21 @@
-name: Deploy Frontend to Firebase Hosting
+name: Deploy React Frontend to Firebase
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'web/**'
+    branches: [main]
+    paths: ['web/**']
   workflow_dispatch:
 
 jobs:
-  build_and_deploy:
+  deploy:
+    name: Build and Deploy to Firebase
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
-
+    
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -26,21 +25,27 @@ jobs:
           cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
-      - name: Install dependencies
+      - name: Install Dependencies
+        working-directory: web
         run: npm ci
-        working-directory: ./web
 
-      - name: Run tests
+      - name: Run Tests
+        working-directory: web
         run: npm test -- --passWithNoTests --watchAll=false
-        working-directory: ./web
 
-      - name: Build React app
+      - name: Build React App
+        working-directory: web
         run: npm run build
-        working-directory: ./web
+
+      - name: Verify Build Output
+        run: |
+          echo "Checking build output..."
+          ls -la web/build/
+          echo "Build directory contents:"
+          find web/build -type f | head -10
 
       - name: Authenticate to Google Cloud
-        id: 'auth'
-        uses: 'google-github-actions/auth@v2'
+        uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: 'projects/694385104566/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
           service_account: 'gemini-cli-runner@pm-bot-prod.iam.gserviceaccount.com'
@@ -49,7 +54,4 @@ jobs:
         run: npm install -g firebase-tools
 
       - name: Deploy to Firebase Hosting
-        run: |
-          firebase deploy --only hosting --project pm-bot-prod
-        env:
-          FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: firebase deploy --only hosting --project pm-bot-prod
