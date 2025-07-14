@@ -33,7 +33,7 @@ exports.conversationalHandler = functions.https.onRequest(async (req, res) => {
       message: 'PM-Bot Conversational Engine is running',
       timestamp: new Date().toISOString(),
       status: 'success',
-      version: '1.0.0'
+      version: '1.0.1'
     };
 
     res.status(200).json(response);
